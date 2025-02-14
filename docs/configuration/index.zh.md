@@ -8,6 +8,8 @@ sing-box 使用 JSON 作为配置文件格式。
 {
   "log": {},
   "dns": {},
+  "ntp": {},
+  "endpoints": [],
   "inbounds": [],
   "outbounds": [],
   "route": {},
@@ -21,6 +23,8 @@ sing-box 使用 JSON 作为配置文件格式。
 |----------------|------------------------|
 | `log`          | [日志](./log/)           |
 | `dns`          | [DNS](./dns/)          |
+| `ntp`          | [NTP](./ntp/)          |
+| `endpoints`    | [端点](./endpoint/)      |
 | `inbounds`     | [入站](./inbound/)       |
 | `outbounds`    | [出站](./outbound/)      |
 | `route`        | [路由](./route/)         |
