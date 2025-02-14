@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	box "github.com/sagernet/sing-box"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -15,7 +16,8 @@ var nekoCtx = context.TODO()
 
 func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
 	var options option.Options
-	err := options.UnmarshalJSON(nekoConfigContent)
+	nekoCtx = box.Context(nekoCtx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	err := options.UnmarshalJSONContext(nekoCtx, nekoConfigContent)
 	if err != nil {
 		return nil, nil, err
 	}
