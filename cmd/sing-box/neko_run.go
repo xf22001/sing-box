@@ -12,9 +12,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-var nekoCtx = context.TODO()
-
 func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
+	var nekoCtx = context.TODO()
 	var options option.Options
 	nekoCtx = box.Context(nekoCtx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
 	err := options.UnmarshalJSONContext(nekoCtx, nekoConfigContent)
