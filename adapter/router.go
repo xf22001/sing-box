@@ -38,6 +38,7 @@ type Router interface {
 	ClearDNSCache()
 	Rules() []Rule
 
+	GetTracker() ConnectionTracker
 	SetTracker(tracker ConnectionTracker)
 
 	ResetNetwork()
