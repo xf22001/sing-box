@@ -10,13 +10,15 @@ import (
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service"
 )
 
 func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
-	var nekoCtx = context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
 	var options option.Options
-	nekoCtx = box.Context(nekoCtx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
-	err := options.UnmarshalJSONContext(nekoCtx, nekoConfigContent)
+	ctx = box.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	ctx = service.ContextWithDefaultRegistry(ctx)
+	err := options.UnmarshalJSONContext(ctx, nekoConfigContent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -27,7 +29,6 @@ func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
 		}
 		options.Log.DisableColor = true
 	}
-	ctx, cancel := context.WithCancel(nekoCtx)
 	instance, err := box.New(box.Options{
 		Context: ctx,
 		Options: options,
