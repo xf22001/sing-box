@@ -21,7 +21,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-box/transport/fakeip"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -518,6 +518,10 @@ func (r *Router) GetNekoTracker() adapter.ConnectionTracker {
 
 func (r *Router) SetNekoTracker(tracker adapter.ConnectionTracker) {
 	r.nekoTracker = tracker
+}
+
+func (r *Router) GetTracker() adapter.ConnectionTracker {
+	return r.tracker
 }
 
 func (r *Router) SetTracker(tracker adapter.ConnectionTracker) {
