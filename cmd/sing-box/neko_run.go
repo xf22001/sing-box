@@ -16,8 +16,7 @@ import (
 func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var options option.Options
-	ctx = box.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
-	ctx = service.ContextWithDefaultRegistry(ctx)
+	ctx = include.Context(service.ContextWithDefaultRegistry(ctx))
 	err := options.UnmarshalJSONContext(ctx, nekoConfigContent)
 	if err != nil {
 		return nil, nil, err
