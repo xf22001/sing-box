@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	box "github.com/sagernet/sing-box"
@@ -19,7 +20,8 @@ func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
 	ctx = include.Context(service.ContextWithDefaultRegistry(ctx))
 	err := options.UnmarshalJSONContext(ctx, nekoConfigContent)
 	if err != nil {
-		return nil, nil, err
+		cancel()
+		return nil, nil, E.Cause(err, "decode config")
 	}
 	//
 	if disableColor {
@@ -43,20 +45,16 @@ func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
 		signal.Stop(osSignals)
 		close(osSignals)
 	}()
-	startCtx, finishStart := context.WithCancel(context.Background())
 	go func() {
-		_, loaded := <-osSignals
-		if loaded {
-			cancel()
-			closeMonitor(startCtx)
-		}
+		<-osSignals
+		cancel()
 	}()
 	err = instance.Start()
-	finishStart()
 	if err != nil {
 		cancel()
 		return nil, nil, E.Cause(err, "start service")
 	}
+	debug.FreeOSMemory()
 	return instance, cancel, nil
 }
 
