@@ -2,10 +2,7 @@ package boxmain
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/include"
@@ -39,16 +36,6 @@ func Create(nekoConfigContent []byte) (*box.Box, context.CancelFunc, error) {
 		return nil, nil, E.Cause(err, "create service")
 	}
 
-	osSignals := make(chan os.Signal, 1)
-	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-	defer func() {
-		signal.Stop(osSignals)
-		close(osSignals)
-	}()
-	go func() {
-		<-osSignals
-		cancel()
-	}()
 	err = instance.Start()
 	if err != nil {
 		cancel()
