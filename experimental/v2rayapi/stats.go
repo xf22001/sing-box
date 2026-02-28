@@ -210,6 +210,22 @@ func (s *StatsService) GetSysStats(ctx context.Context, request *SysStatsRequest
 func (s *StatsService) mustEmbedUnimplementedStatsServiceServer() {
 }
 
+func (s *StatsService) GetNekoStats(ctx context.Context, name string, reset bool) (int64, error) {
+	s.access.Lock()
+	counter, loaded := s.counters[name]
+	s.access.Unlock()
+	if !loaded {
+		return 0, E.New(name, " not found.")
+	}
+	var value int64
+	if reset {
+		value = counter.Swap(0)
+	} else {
+		value = counter.Load()
+	}
+	return value, nil
+}
+
 //nolint:staticcheck
 func (s *StatsService) loadOrCreateCounter(name string) *atomic.Int64 {
 	counter, loaded := s.counters[name]
