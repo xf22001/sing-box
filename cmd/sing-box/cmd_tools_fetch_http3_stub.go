@@ -1,6 +1,6 @@
 //go:build !with_quic
 
-package boxmain
+package main
 
 import (
 	"net/url"
