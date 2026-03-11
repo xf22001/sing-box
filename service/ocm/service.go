@@ -130,6 +130,7 @@ type Service struct {
 	credentialPath string
 	credentials    *oauthCredentials
 	users          []option.OCMUser
+	dialer         N.Dialer
 	httpClient     *http.Client
 	httpHeaders    http.Header
 	listener       *listener.Listener
@@ -138,7 +139,9 @@ type Service struct {
 	userManager    *UserManager
 	accessMutex    sync.RWMutex
 	usageTracker   *AggregatedUsage
-	trackingGroup  sync.WaitGroup
+	webSocketMutex sync.Mutex
+	webSocketGroup sync.WaitGroup
+	webSocketConns map[*webSocketSession]struct{}
 	shuttingDown   bool
 }
 
@@ -187,6 +190,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		logger:         logger,
 		credentialPath: options.CredentialPath,
 		users:          options.Users,
+		dialer:         serviceDialer,
 		httpClient:     httpClient,
 		httpHeaders:    options.Headers.Build(),
 		listener: listener.New(listener.Options{
@@ -195,8 +199,9 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
-		userManager:  userManager,
-		usageTracker: usageTracker,
+		userManager:    userManager,
+		usageTracker:   usageTracker,
+		webSocketConns: make(map[*webSocketSession]struct{}),
 	}
 
 	if options.TLS != nil {
@@ -354,6 +359,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, r, http.StatusUnauthorized, "authentication_error", "invalid api key")
 			return
 		}
+	}
+
+	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && strings.HasPrefix(path, "/v1/responses") {
+		s.handleWebSocket(w, r, proxyPath, username)
+		return
 	}
 
 	var requestModel string
@@ -624,11 +634,17 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 }
 
 func (s *Service) Close() error {
+	webSocketSessions := s.startWebSocketShutdown()
+
 	err := common.Close(
 		common.PtrOrNil(s.httpServer),
 		common.PtrOrNil(s.listener),
 		s.tlsConfig,
 	)
+	for _, session := range webSocketSessions {
+		session.Close()
+	}
+	s.webSocketGroup.Wait()
 
 	if s.usageTracker != nil {
 		s.usageTracker.cancelPendingSave()
@@ -639,4 +655,49 @@ func (s *Service) Close() error {
 	}
 
 	return err
+}
+
+func (s *Service) registerWebSocketSession(session *webSocketSession) bool {
+	s.webSocketMutex.Lock()
+	defer s.webSocketMutex.Unlock()
+
+	if s.shuttingDown {
+		return false
+	}
+
+	s.webSocketConns[session] = struct{}{}
+	s.webSocketGroup.Add(1)
+	return true
+}
+
+func (s *Service) unregisterWebSocketSession(session *webSocketSession) {
+	s.webSocketMutex.Lock()
+	_, loaded := s.webSocketConns[session]
+	if loaded {
+		delete(s.webSocketConns, session)
+	}
+	s.webSocketMutex.Unlock()
+
+	if loaded {
+		s.webSocketGroup.Done()
+	}
+}
+
+func (s *Service) isShuttingDown() bool {
+	s.webSocketMutex.Lock()
+	defer s.webSocketMutex.Unlock()
+	return s.shuttingDown
+}
+
+func (s *Service) startWebSocketShutdown() []*webSocketSession {
+	s.webSocketMutex.Lock()
+	defer s.webSocketMutex.Unlock()
+
+	s.shuttingDown = true
+
+	webSocketSessions := make([]*webSocketSession, 0, len(s.webSocketConns))
+	for session := range s.webSocketConns {
+		webSocketSessions = append(webSocketSessions, session)
+	}
+	return webSocketSessions
 }
