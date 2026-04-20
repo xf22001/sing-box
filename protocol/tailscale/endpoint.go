@@ -110,6 +110,7 @@ type Endpoint struct {
 	systemInterface     bool
 	systemInterfaceName string
 	systemInterfaceMTU  uint32
+	serverStarted       bool
 	systemTun           tun.Tun
 	systemDialer        *dialer.DefaultDialer
 	fallbackTCPCloser   func()
@@ -262,9 +263,16 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 }
 
 func (t *Endpoint) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
+	switch stage {
+	case adapter.StartStateStart:
+		return t.start()
+	case adapter.StartStatePostStart:
+		return t.postStart()
 	}
+	return nil
+}
+
+func (t *Endpoint) start() error {
 	if t.platformInterface != nil {
 		err := t.network.UpdateInterfaces()
 		if err != nil {
@@ -347,6 +355,10 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 			})
 		})
 	}
+	return nil
+}
+
+func (t *Endpoint) postStart() error {
 	err := t.server.Start()
 	if err != nil {
 		if t.systemTun != nil {
@@ -354,6 +366,7 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 		}
 		return err
 	}
+	t.serverStarted = true
 	if t.fallbackTCPCloser == nil {
 		t.fallbackTCPCloser = t.server.RegisterFallbackTCPHandler(func(src, dst netip.AddrPort) (handler func(net.Conn), intercept bool) {
 			return func(conn net.Conn) {
@@ -471,13 +484,17 @@ func (t *Endpoint) watchState() {
 }
 
 func (t *Endpoint) Close() error {
+	var err error
+	if t.serverStarted {
+		err = common.Close(common.PtrOrNil(t.server))
+		t.serverStarted = false
+	}
 	netmon.RegisterInterfaceGetter(nil)
 	netns.SetControlFunc(nil)
 	if t.fallbackTCPCloser != nil {
 		t.fallbackTCPCloser()
 		t.fallbackTCPCloser = nil
 	}
-	err := common.Close(common.PtrOrNil(t.server))
 	if t.systemTun != nil {
 		t.systemTun.Close()
 		t.systemTun = nil
