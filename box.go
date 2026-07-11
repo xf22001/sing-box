@@ -36,6 +36,7 @@ import (
 var _ adapter.SimpleLifecycle = (*Box)(nil)
 
 type Box struct {
+	ctx             context.Context
 	createdAt       time.Time
 	logFactory      log.Factory
 	logger          log.ContextLogger
@@ -383,6 +384,7 @@ func New(options Options) (*Box, error) {
 		internalServices = append(internalServices, adapter.NewLifecycleService(ntpService, "ntp service"))
 	}
 	return &Box{
+		ctx:             ctx,
 		network:         networkManager,
 		endpoint:        endpointManager,
 		inbound:         inboundManager,
@@ -558,4 +560,8 @@ func (s *Box) Endpoint() adapter.EndpointManager {
 
 func (s *Box) LogFactory() log.Factory {
 	return s.logFactory
+}
+
+func (s *Box) Context() context.Context {
+	return s.ctx
 }
