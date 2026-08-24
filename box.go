@@ -58,8 +58,9 @@ type Options struct {
 	Context           context.Context
 	PlatformLogWriter log.PlatformWriter
 	// Logger, if set, is used as the box's log factory instead of creating a
-	// new one from options.Log. Optional; nil falls back to the default.
-	Logger log.Factory
+	// new one from options.Log. It must support observability so the Clash API
+	// log streaming can subscribe to it. Optional; nil falls back to the default.
+	Logger log.ObservableFactory
 }
 
 func Context(
@@ -356,6 +357,8 @@ func New(options Options) (*Box, error) {
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
 		clashAPIOptions.ModeList = experimental.CalculateClashModeList(options.Options)
+		// Safe: options.Logger is ObservableFactory, and log.New also returns an
+		// ObservableFactory (defaultFactory or nopFactory).
 		clashServer, err := experimental.NewClashServer(ctx, logFactory.(log.ObservableFactory), clashAPIOptions)
 		if err != nil {
 			return nil, E.Cause(err, "create clash-server")

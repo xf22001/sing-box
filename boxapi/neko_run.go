@@ -17,7 +17,7 @@ var disableColor bool
 // Create builds and starts a box instance from a config. When logger is
 // non-nil it is used as the box's log factory (e.g. so a GUI can redirect
 // kernel logs to its own writer), otherwise a default factory is created.
-func Create(nekoConfigContent []byte, logger log.Factory) (*box.Box, context.CancelFunc, error) {
+func Create(nekoConfigContent []byte, logger log.ObservableFactory) (*box.Box, context.CancelFunc, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var options option.Options
 	ctx = include.Context(service.ContextWithDefaultRegistry(ctx))
