@@ -2,11 +2,11 @@ package boxapi
 
 import (
 	"context"
-	"io"
 	"runtime/debug"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
@@ -14,7 +14,10 @@ import (
 
 var disableColor bool
 
-func Create(nekoConfigContent []byte, externalWriter io.Writer) (*box.Box, context.CancelFunc, error) {
+// Create builds and starts a box instance from a config. When logger is
+// non-nil it is used as the box's log factory (e.g. so a GUI can redirect
+// kernel logs to its own writer), otherwise a default factory is created.
+func Create(nekoConfigContent []byte, logger log.Factory) (*box.Box, context.CancelFunc, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var options option.Options
 	ctx = include.Context(service.ContextWithDefaultRegistry(ctx))
@@ -32,15 +35,11 @@ func Create(nekoConfigContent []byte, externalWriter io.Writer) (*box.Box, conte
 	instance, err := box.New(box.Options{
 		Context: ctx,
 		Options: options,
+		Logger:  logger,
 	})
 	if err != nil {
 		cancel()
 		return nil, nil, E.Cause(err, "create service")
-	}
-
-	// 核心替换逻辑：如果外部提供了 Android GUI 的 Writer，直接注入内核
-	if externalWriter != nil {
-		instance.SetLogWritter(externalWriter)
 	}
 
 	err = instance.Start()

@@ -57,6 +57,9 @@ type Options struct {
 	option.Options
 	Context           context.Context
 	PlatformLogWriter log.PlatformWriter
+	// Logger, if set, is used as the box's log factory instead of creating a
+	// new one from options.Log. Optional; nil falls back to the default.
+	Logger log.Factory
 }
 
 func Context(
@@ -146,16 +149,21 @@ func New(options Options) (*Box, error) {
 	if platformInterface != nil {
 		defaultLogWriter = io.Discard
 	}
-	logFactory, err := log.New(log.Options{
-		Context:        ctx,
-		Options:        common.PtrValueOrDefault(options.Log),
-		Observable:     needClashAPI,
-		DefaultWriter:  defaultLogWriter,
-		BaseTime:       createdAt,
-		PlatformWriter: options.PlatformLogWriter,
-	})
-	if err != nil {
-		return nil, E.Cause(err, "create log factory")
+	var logFactory log.Factory
+	if options.Logger != nil {
+		logFactory = options.Logger
+	} else {
+		logFactory, err = log.New(log.Options{
+			Context:        ctx,
+			Options:        common.PtrValueOrDefault(options.Log),
+			Observable:     needClashAPI,
+			DefaultWriter:  defaultLogWriter,
+			BaseTime:       createdAt,
+			PlatformWriter: options.PlatformLogWriter,
+		})
+		if err != nil {
+			return nil, E.Cause(err, "create log factory")
+		}
 	}
 
 	var internalServices []adapter.LifecycleService
